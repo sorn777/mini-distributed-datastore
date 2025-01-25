@@ -19,6 +19,6 @@ public final class VirtualNode {
 
     @Override
     public String toString() {
-        return node.getId() + "_replica_" + replicaIndex;
+        return node.getId() + "#" + replicaIndex;
     }
 }

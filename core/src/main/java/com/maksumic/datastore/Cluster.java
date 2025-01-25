@@ -1,5 +1,7 @@
 package com.maksumic.datastore;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -10,16 +12,12 @@ import java.util.concurrent.ConcurrentSkipListMap;
  */
 public final class Cluster {
     private final ConcurrentNavigableMap<Integer, VirtualNode> ring;
-    private final int numberOfReplicas;
 
     /**
-     * Constructs a new Cluster with a specified number of replicas for each physical node.
-     *
-     * @param numberOfReplicas the number of virtual nodes (replicas) for each physical node
+     * Constructs a new Cluster.
      */
     public Cluster(int numberOfReplicas) {
         this.ring = new ConcurrentSkipListMap<>();
-        this.numberOfReplicas = numberOfReplicas;
     }
 
     /**
@@ -39,7 +37,7 @@ public final class Cluster {
      * @param physicalNode the physical node to add to the cluster
      */
     public synchronized void addPhysicalNode(PhysicalNode physicalNode) {
-        for (int i = 0; i < numberOfReplicas; i++) {
+        for (int i = 0; i < calculateNumberOfReplicas(physicalNode.getSize()); i++) {
             VirtualNode virtualNode = new VirtualNode(physicalNode, i);
             ring.put(hash(virtualNode.toString()), virtualNode);
         }
@@ -69,11 +67,24 @@ public final class Cluster {
     /**
      * Computes the hash of a string. This is used to determine the position of a virtual node in the ring.
      *
-     * @param s the string to hash
+     * @param key the string to hash
      * @return the hash value of the input string
      */
-    private Integer hash(String s) {
-        // TODO: MurmurHash or SHA-256
-        return Math.abs(s.hashCode());
+    private Integer hash(String key) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] encodedHash = digest.digest(key.getBytes());
+            return Math.abs(BytesUtil.bytesToInt(encodedHash));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 algorithm not found", e);
+        }
+    }
+
+    private int calculateNumberOfReplicas(PhysicalNodeSize physicalNodeSize) {
+        return switch (physicalNodeSize) {
+            case SMALL -> 1;
+            case MEDIUM -> 3;
+            case LARGE -> 5;
+        };
     }
 }
