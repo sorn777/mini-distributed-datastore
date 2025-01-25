@@ -1,0 +1,5 @@
+rootProject.name = 'datastore'
+
+include 'core'
+include 'networking'
+include 'tests'
